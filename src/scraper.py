@@ -6,7 +6,7 @@ import argparse
 
 class GoodReadsScraper():
     """ 
-        Basic GoodReads Scraper
+        GoodReads Scraper
     """
 
     def __init__(self,headless):
