@@ -74,7 +74,7 @@ class GoodReadsScraper():
     
         books_urls = []
 
-        urls_big_lists = list(urls_big_lists)[:1]
+        # urls_big_lists = list(urls_big_lists)[:1]
 
         for i,url in enumerate(urls_big_lists):
             logger.info(f"Starting books list {i+1} out of {len(urls_big_lists)}")
@@ -101,44 +101,46 @@ class GoodReadsScraper():
         books_info = {}
 
         for i,book_url in enumerate(books_urls):
+            try:
+                book_id = int(book_url.rsplit('/', 1)[-1].split('-')[0].split('.')[0])
 
-            book_id = int(book_url.rsplit('/', 1)[-1].split('-')[0].split('.')[0])
+                if book_id in books_info: break
+                
+                self.driver.get(book_url)
+                book_name = self.driver.find_element_by_css_selector("#bookTitle").get_attribute("textContent").strip()
+                book_abstract = self.driver.find_element_by_xpath("/html/body/div[2]/div[3]/div[1]/div[2]/div[4]/div[1]/div[2]/div[3]/div/span[2]").get_attribute("textContent")
+                book_author = self.driver.find_element_by_css_selector("#bookAuthors > span:nth-child(2) > div > a > span").get_attribute("textContent")
+                book_av_ratings = float(self.driver.find_element_by_css_selector("#bookMeta > span:nth-child(2)").get_attribute("textContent"))
+                book_num_ratings = int(self.driver.find_element_by_xpath('//*[@id="bookMeta"]/a[2]').get_attribute("textContent").replace("ratings","").replace(",","").strip())
 
-            if book_id in books_info: break
-            
-            self.driver.get(book_url)
-            book_name = self.driver.find_element_by_css_selector("#bookTitle").get_attribute("textContent").strip()
-            book_abstract = self.driver.find_element_by_xpath("/html/body/div[2]/div[3]/div[1]/div[2]/div[4]/div[1]/div[2]/div[3]/div/span[2]").get_attribute("textContent")
-            book_author = self.driver.find_element_by_css_selector("#bookAuthors > span:nth-child(2) > div > a > span").get_attribute("textContent")
-            book_av_ratings = float(self.driver.find_element_by_css_selector("#bookMeta > span:nth-child(2)").get_attribute("textContent"))
-            book_num_ratings = int(self.driver.find_element_by_xpath('//*[@id="bookMeta"]/a[2]').get_attribute("textContent").replace("ratings","").replace(",","").strip())
+                container = self.driver.find_element_by_class_name("rightContainer")
+                tags_list = container.find_element_by_class_name("stacked").find_elements_by_class_name("elementList")
+                tags = set()
+                for row in tags_list:
+                    new_tags = row.find_element_by_class_name("left").text.split('>')
+                    for tag in new_tags: tags.add(tag.strip())
+                
+                bookReviews = self.driver.find_element_by_id("bookReviews")
+                bookReviews = bookReviews.find_elements_by_class_name("friendReviews")[:3]
+                comments = {}
+                for bookReview in bookReviews:
+                    comment_author = bookReview.find_element_by_class_name("user").get_attribute("href")
+                    comment_text = bookReview.find_element_by_xpath(".//div[1]/div[2]/span/span[2]").get_attribute("textContent").strip()
+                    comments[comment_author] = comment_text
 
-            container = self.driver.find_element_by_class_name("rightContainer")
-            tags_list = container.find_element_by_class_name("stacked").find_elements_by_class_name("elementList")
-            tags = set()
-            for row in tags_list:
-                new_tags = row.find_element_by_class_name("left").text.split('>')
-                for tag in new_tags: tags.add(tag.strip())
-            
-            bookReviews = self.driver.find_element_by_id("bookReviews")
-            bookReviews = bookReviews.find_elements_by_class_name("friendReviews")[:3]
-            comments = {}
-            for bookReview in bookReviews:
-                comment_author = bookReview.find_element_by_class_name("user").get_attribute("href")
-                comment_text = bookReview.find_element_by_xpath(".//div[1]/div[2]/span/span[2]").get_attribute("textContent").strip()
-                comments[comment_author] = comment_text
+                books_info[book_id] = {
+                    "name":book_name,
+                    "abstract":book_abstract,
+                    "author":book_author,
+                    "average_rating":book_av_ratings,
+                    "number_of_ratings":book_num_ratings,
+                    "tags": set(tags),
+                    "comments": comments
+                }
 
-            books_info[book_id] = {
-                "name":book_name,
-                "abstract":book_abstract,
-                "author":book_author,
-                "average_rating":book_av_ratings,
-                "number_of_ratings":book_num_ratings,
-                "tags": set(tags),
-                "comments": comments
-            }
-
-            logger.info(f"Scraped {len(books_info)} books out of {len(books_urls)} books")
+                logger.info(f"Scraped {len(books_info)} books out of {len(books_urls)} books")
+            except:
+                logger.error("Skipped book with invalid html structure")
 
         return books_info
 
@@ -164,10 +166,10 @@ def main():
     scraper = GoodReadsScraper(headless=headless)
     
     # get all the tags available on the webpage as a list
-    tags = scraper.get_tags_list()[:1]
+    tags = scraper.get_tags_list()
 
     # get book links as a list
-    books_urls = scraper.get_books_urls(tags)[:2]
+    books_urls = scraper.get_books_urls(tags) #[:2]
     
     # get book info as a dict
     books_info = scraper.get_books_info(books_urls)
