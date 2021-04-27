@@ -77,7 +77,7 @@ class GoodReadsScraper():
 
         # then get the actual book urls from each big list url
         books_urls = []
-        # urls_big_lists = list(urls_big_lists)[:1]
+        urls_big_lists = list(urls_big_lists)[:1]
 
         for i,url in enumerate(urls_big_lists):
             logger.info(f"Starting books list {i+1} out of {len(urls_big_lists)}")
@@ -103,11 +103,18 @@ class GoodReadsScraper():
 
         books_info = {}
 
+        added_urls = []
+
         for i,book_url in enumerate(books_urls):
             # try:
-            book_id = int(book_url.rsplit('/', 1)[-1].split('-')[0].split('.')[0])
+            book_id = i # int(book_url.rsplit('/', 1)[-1].split('-')[0].split('.')[0])
 
-            if book_id in books_info: break
+            # if book_id in books_info: break
+            if book_url in added_urls:
+                logger.info(f"Collision")
+                break
+
+            added_urls.append(book_url)
                 
             self.driver.get(book_url)
             book_name = self.driver.find_element_by_css_selector("#bookTitle").get_attribute("textContent").strip()
@@ -176,13 +183,17 @@ def main():
     tags = scraper.get_tags_list()
 
     # get book links as a list
-    books_urls = scraper.get_books_urls(tags)
+    books_urls = scraper.get_books_urls(tags[:1])
     
     # get book info as a dict
-    books_info = scraper.get_books_info(books_urls)
+    books_info = scraper.get_books_info(books_urls[:1])
     
     # download all the books
     scraper.download(books_info)
+
+    # df =pd.read_csv("file_name.csv")
+    # for row in df.rows: 
+    #     name = row['name']
 
 if __name__=="__main__":
     main()
