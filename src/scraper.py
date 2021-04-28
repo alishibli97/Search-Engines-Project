@@ -77,7 +77,7 @@ class GoodReadsScraper():
 
         # then get the actual book urls from each big list url
         books_urls = []
-        urls_big_lists = list(urls_big_lists)[:1]
+        # urls_big_lists = list(urls_big_lists)[:1]
 
         for i,url in enumerate(urls_big_lists):
             logger.info(f"Starting books list {i+1} out of {len(urls_big_lists)}")
@@ -106,8 +106,8 @@ class GoodReadsScraper():
         added_urls = []
 
         for i,book_url in enumerate(books_urls):
-            # try:
-            book_id = i # int(book_url.rsplit('/', 1)[-1].split('-')[0].split('.')[0])
+
+            # book_id = int(book_url.rsplit('/', 1)[-1].split('-')[0].split('.')[0])
 
             # if book_id in books_info: break
             if book_url in added_urls:
@@ -115,7 +115,9 @@ class GoodReadsScraper():
                 break
 
             added_urls.append(book_url)
-                
+
+            book_id = i
+
             self.driver.get(book_url)
             book_name = self.driver.find_element_by_css_selector("#bookTitle").get_attribute("textContent").strip()
             try: book_abstract = self.driver.find_element_by_id("description").find_element_by_xpath(".//span[2]").get_attribute("textContent")
@@ -158,7 +160,17 @@ class GoodReadsScraper():
 
         return books_info
 
-    def download(self,books_info):
+    def download_booksUrls(self,books_urls):
+        """ download the data to disk
+
+        Args:
+            books_info (dict): dict containing info of books
+        """
+        df = pd.DataFrame(books_urls)
+        df.to_csv("urls.csv")
+
+
+    def download_booksInfo(self,books_info):
         """ download the data to disk
 
         Args:
@@ -174,22 +186,28 @@ def main():
     # headless = args.headless
 
     # change to False if you want to open "chromium" browser
-    headless = False
+    open_browser = True
 
     # start the scraper
-    scraper = GoodReadsScraper(headless=headless)
+    scraper = GoodReadsScraper(headless=not open_browser)
     
-    # get all the tags available on the webpage as a list
-    tags = scraper.get_tags_list()
+    # # get all the tags available on the webpage as a list
+    # tags = scraper.get_tags_list()
 
-    # get book links as a list
-    books_urls = scraper.get_books_urls(tags[:1])
-    
+    # # get book links as a list
+    # books_urls = scraper.get_books_urls(tags)
+
+    # scraper.download_booksUrls(books_urls)
+
+    df = pd.read_csv("urls.csv",index_col=0)
+    df.rename( columns={'0':'urls'}, inplace=True)
+    books_urls = list(df.urls)
+
     # get book info as a dict
-    books_info = scraper.get_books_info(books_urls[:1])
+    books_info = scraper.get_books_info(books_urls)
     
     # download all the books
-    scraper.download(books_info)
+    scraper.download_booksInfo(books_info)
 
     # df =pd.read_csv("file_name.csv")
     # for row in df.rows: 
