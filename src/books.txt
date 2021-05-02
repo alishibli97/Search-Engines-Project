@@ -1,0 +1,35 @@
+[
+    {
+        "title": "the lord of the rings",
+        "author": "j. r. r. tolkien",
+        "genre": "fantasy",
+        "year publised": "1954",
+        "description": "this book is about elves and trolls."
+    },
+
+    {
+        "title": "harry potter and the philospher's stone",
+        "author": "j.k. rowling",
+        "genre": "fantasy",
+        "year publised": "1997",
+        "description": "this book is about magic and stones."
+    },
+
+    {
+        "title": "harry potter and the chamber of secrets",
+        "author": "j.k. rowling",
+        "genre": "fantasy",
+        "year publised": "2000",
+        "description": "this book is about magic and snakes."
+    },
+
+    {
+        "title": "harry potter and the prisoner of azkaban",
+        "author": "j.k. rowling",
+        "genre": "fantasy",
+        "year publised": "2004",
+        "description": "this book is about magic and prisoner."
+    }
+
+
+]
