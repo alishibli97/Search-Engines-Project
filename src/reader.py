@@ -34,11 +34,10 @@ def make_json(csvFilePath, jsonFilePath):
     # Open a json writer, and use the json.dumps()
     # function to dump data
     with open(jsonFilePath, 'w', encoding='utf-8') as jsonf:
-        jsonf.write(json.dumps(data, indent=4, separators=(',', ':')))
+        jsonf.write(json.dumps(data, indent=4))
 
 
 def add_to_index(books):
-    global ID
     for i in range(len(books)):
         if(i%1000==0):
             logger.info(f'{i} out of {len(books)} indexed')
