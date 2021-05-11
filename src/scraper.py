@@ -56,6 +56,7 @@ class GoodReadsScraper():
 
         Returns:
             books_urls: list of book urls for all tags given
+            map: dictionary with keys as the book url and values as list of big_lists urls (used mainly for validation or finding relevance of our retrieval results)
         """
 
         # first get the big lists urls
@@ -74,9 +75,9 @@ class GoodReadsScraper():
             
             logger.info(f"Collected all links for tag {tag}")
 
-
         # then get the actual book urls from each big list url
         books_urls = []
+        map = {}
         # urls_big_lists = list(urls_big_lists)[:1]
 
         for i,url in enumerate(urls_big_lists):
@@ -86,78 +87,138 @@ class GoodReadsScraper():
             books = books_list.find_elements_by_class_name("bookTitle")
 
             for j,book in enumerate(books):
-                books_urls.append(book.get_attribute("href"))
-            logger.info(f"Collected {len(books)} books urls")
+                url_new = book.get_attribute("href")
+                books_urls.append(url_new)
+                if url_new in map: map[url_new].append(url)
+                else: map[url_new] = [url]
+            logger.info(f"Collected {len(books)} books urls out of {len(books)*len(urls_big_lists)}")
 
-        return books_urls
+        return books_urls,map
 
-    def get_books_info(self,books_urls):
+    def get_books_info(books_urls,map):
         """ retieve the info of the books
-
+        
         Args:
             books_urls (list): list of books urls
-
-        Returns:
-            books_info: dict of book ids (same ID from GoodReads) and information about the book
+            
+            Returns:
+                books_info: dict of book ids (same ID from GoodReads) and information about the book
         """
-
         books_info = {}
 
-        added_urls = []
-
         for i,book_url in enumerate(books_urls):
+            time.sleep(2)
+            
+            for id,row in urls.iterrows():
 
-            # book_id = int(book_url.rsplit('/', 1)[-1].split('-')[0].split('.')[0])
+                book_id = i
 
-            # if book_id in books_info: break
-            if book_url in added_urls:
-                logger.info(f"Collision")
-                break
-
-            added_urls.append(book_url)
-
-            book_id = i
-
-            self.driver.get(book_url)
-            book_name = self.driver.find_element_by_css_selector("#bookTitle").get_attribute("textContent").strip()
-            try: book_abstract = self.driver.find_element_by_id("description").find_element_by_xpath(".//span[2]").get_attribute("textContent")
-            except: book_abstract = self.driver.find_element_by_id("description").find_element_by_xpath(".//span").get_attribute("textContent")
-
-            book_author = self.driver.find_element_by_css_selector("#bookAuthors > span:nth-child(2) > div > a > span").get_attribute("textContent")
-            book_av_ratings = float(self.driver.find_element_by_css_selector("#bookMeta > span:nth-child(2)").get_attribute("textContent"))
-            book_num_ratings = int(self.driver.find_element_by_xpath('//*[@id="bookMeta"]/a[2]').get_attribute("textContent").replace("ratings","").replace(",","").strip())
-
-            container = self.driver.find_element_by_class_name("rightContainer")
-            tags_list = container.find_element_by_class_name("stacked").find_elements_by_class_name("elementList")
-            tags = set()
-            for row in tags_list:
-                new_tags = row.find_element_by_class_name("left").text.split('>')
-                for tag in new_tags: tags.add(tag.strip())
-
-            bookReviews = self.driver.find_element_by_id("bookReviews")
-            bookReviews = bookReviews.find_elements_by_class_name("friendReviews")[:3]
-            comments = {}
-            for bookReview in bookReviews:
-                comment_author = bookReview.find_element_by_class_name("user").get_attribute("href")
-                try:
-                    comment_text = bookReview.find_element_by_xpath(".//div[1]/div[2]/span/span[2]").get_attribute("textContent").strip()
-                    comments[comment_author] = comment_text
+                driver.get(book_url)
+                book_name = driver.find_element_by_css_selector("#bookTitle").get_attribute("textContent").strip()
+                try: 
+                    try:book_abstract = driver.find_element_by_id("description").find_element_by_xpath(".//span[2]").get_attribute("textContent")
+                    except: book_abstract = driver.find_element_by_id("description").find_element_by_xpath(".//span").get_attribute("textContent")
                 except:
-                    comment_text = bookReview.find_element_by_xpath(".//div[1]/div[2]/span/span").get_attribute("textContent").strip()
-                    comments[comment_author] = comment_text
+                    book_abstract = ""
 
-            books_info[book_id] = {
-                "name":book_name,
-                "abstract":book_abstract,
-                "author":book_author,
-                "average_rating":book_av_ratings,
-                "number_of_ratings":book_num_ratings,
-                "tags": set(tags),
-                "comments": comments
-            }
+                book_author = driver.find_element_by_css_selector("#bookAuthors > span:nth-child(2) > div > a > span").get_attribute("textContent")
+                book_av_ratings = float(driver.find_element_by_css_selector("#bookMeta > span:nth-child(2)").get_attribute("textContent"))
+                book_num_ratings = int(driver.find_element_by_xpath('//*[@id="bookMeta"]/a[2]/meta').get_attribute("content"))
 
-            logger.info(f"Scraped {len(books_info)} books out of {len(books_urls)} books")
+                container = driver.find_element_by_class_name("rightContainer")
+                # tags_list = container.find_element_by_class_name("stacked").find_elements_by_class_name("elementList")
+                tags_list = container.find_elements_by_class_name("elementList")
+                tags = set()
+                for row in tags_list:
+                    try: 
+                        try: new_tags = row.find_element_by_class_name("left").text.split('>')
+                        except: new_tags = row.find_element_by_xpath(".//div[1]/a").text.split('>')
+                        for tag in new_tags: tags.add(tag.strip())
+                    except: pass
 
+                bookReviews = driver.find_element_by_id("bookReviews")
+                bookReviews = bookReviews.find_elements_by_class_name("friendReviews")[:3]
+                comments = {}
+                for bookReview in bookReviews:
+                    comment_author = bookReview.find_element_by_class_name("user").get_attribute("href")
+                    try:
+                        try:
+                        comment_text = bookReview.find_element_by_xpath(".//div[1]/div[2]/span/span[2]").get_attribute("textContent").strip()
+                        comments[comment_author] = comment_text
+                        except:
+                            comment_text = bookReview.find_element_by_xpath(".//div[1]/div[2]/span/span").get_attribute("textContent").strip()
+                            comments[comment_author] = comment_text
+                    except:
+                        pass
+
+                books_info[book_id] = {
+                    "name":book_name,
+                    "abstract":book_abstract,
+                    "author":book_author,
+                    "average_rating":book_av_ratings,
+                    "number_of_ratings":book_num_ratings,
+                    "tags": tags,
+                    "comments": comments,
+                    "url": book_url,
+                    "list_ID": map[book_url]
+                }
+
+                # logger.info(f"Scraped {len(books_info)} books out of {len(books_urls)} books")
+                sys.stdout.write(f"\rURL: {book_url}. Scraped {len(books_info)} books out of {len(books_urls)} books")
+                sys.stdout.flush()
+
+        return books_info
+
+    def download_batches(self,books_urls,map,k=400):
+        """
+        Divide the dataset into k batches
+
+        Args:
+            books_urls (list): list containing the book urls
+        """
+        total = len(books_urls)
+        batch_size = k
+        num_batches = total//batch_size
+        batches = [batch_size for _ in range(num_batches)]
+        batches.append(total%batch_size)
+        # print(batches)
+        # print(len(batches))
+
+        id = 0 # can change the id in case the scraper crashed at some instance (default id=0 starts from 0)
+        for index,batch in enumerate(batches[id:]):
+            i = index+id
+            start = i*batch
+            end = (i+1)*batch
+            info_urls = books_urls[start:end]
+            books_info_batch = self.get_books_info(info_urls,map)
+            df_batch = pd.DataFrame(books_info_batch)
+            df_batch.to_csv(f"batch_{i}.csv")
+            sys.stdout.write(f"\rFinished batch {i+1}")
+            sys.stdout.flush()
+        info_urls = books_urls[end:]
+        books_info_batch = get_books_info(info_urls,map)
+        df_batch = pd.DataFrame(books_info_batch)
+        df_batch.to_csv(f"batch_{i+1}.csv")
+        sys.stdout.write(f"\rFinished batch {i+1}")
+        sys.stdout.flush()
+
+    def concatenate_batches(self,num_books,batch_size):
+        """ concatenate all the books to one dictionary
+
+        Args:
+            num_books (int): total number of books scraped
+            batch_size (int): number of books per batch
+
+            Returns:
+                books_info (pandas Dataframe): dataframe of books info
+        """
+        num_batches = num_batches//batch_size + int(not num_batches%batch_size==0) # ceiling of the number
+        books_info = pd.DataFrame()
+        for i,batch in enumerate(num_batches):
+            df = pd.read_csv(f"batch_{i}.csv.csv")
+            df.drop(['Unnamed: 0'], axis=1, inplace=True)
+            if books_info.empty: books_info = df
+            else: books_info.append(df)
         return books_info
 
     def download_booksUrls(self,books_urls):
@@ -174,10 +235,9 @@ class GoodReadsScraper():
         """ download the data to disk
 
         Args:
-            books_info (dict): dict containing info of books
+            books_info (pandas Dataframe): dataframe containing info of books
         """
-        df = pd.DataFrame(books_info)
-        df.to_csv("data.csv")
+        books_info.to_csv("goodreads_dataset.csv")
 
 def main():
     # parser = argparse.ArgumentParser()
@@ -191,27 +251,30 @@ def main():
     # start the scraper
     scraper = GoodReadsScraper(headless=not open_browser)
     
-    # # get all the tags available on the webpage as a list
-    # tags = scraper.get_tags_list()
+    # get all the tags available on the webpage as a list
+    tags = scraper.get_tags_list()
 
-    # # get book links as a list
-    # books_urls = scraper.get_books_urls(tags)
-
+    # get book links as a list
+    books_urls,map = scraper.get_books_urls(tags)
     # scraper.download_booksUrls(books_urls)
 
-    df = pd.read_csv("urls.csv",index_col=0)
-    df.rename( columns={'0':'urls'}, inplace=True)
-    books_urls = list(df.urls)
+    # df = pd.read_csv("urls.csv",index_col=0)
+    # df.rename( columns={'0':'urls'}, inplace=True)
+    # books_urls = list(df.urls)
 
-    # get book info as a dict
-    books_info = scraper.get_books_info(books_urls)
-    
-    # download all the books
-    scraper.download_booksInfo(books_info)
+    run_batches = True
 
-    # df =pd.read_csv("file_name.csv")
-    # for row in df.rows: 
-    #     name = row['name']
+    if run_batches:
+        # download the dataset as batches of size k (batch_size)
+        batch_size = 400
+        scraper.download_batches(books_urls,map,batch_size)
+        books_info = scraper.concatenate_batches(len(books_urls),batch_size)
+        scraper.download_booksInfo(books_info)
+    else:
+        # download all the books
+        books_info = scraper.get_books_info(books_urls,map)
+        books_info = pd.DataFrame(books_info)
+        scraper.download_booksInfo(books_info)
 
 if __name__=="__main__":
     main()
